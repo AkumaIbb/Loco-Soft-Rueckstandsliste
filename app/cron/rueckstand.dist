@@ -1,0 +1,20 @@
+# /etc/cron.d/rueckstand (symlink aus projectroot/cron/rueckstand)
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=""
+CURLUA="curl -fsS --max-time 600 -H 'User-Agent: rueckstand-cron/1.0'"
+
+# Domain anpassen (hier anonymisiert):
+#   http://example.internal
+# ggf. auf https wechseln, wenn verfügbar.
+
+# 1) Excel-Import (täglich 18:10)
+10 18 * * * root flock -n /var/lock/rueckstand_import.lock -c "$CURLUA 'http://example.internal/public/ImportExcel.php' >/dev/null"
+
+# 2) Enrichment: Serviceberater (18:20)
+20 18 * * * root flock -n /var/lock/rueckstand_enr_sb.lock -c "$CURLUA 'http://example.internal/public/enrich_service_advisors.php' >/dev/null"
+
+# 3) Enrichment: Fälligkeiten (18:30)
+30 18 * * * root flock -n /var/lock/rueckstand_enr_due.lock -c "$CURLUA 'http://example.internal/public/enrich_due_dates.php' >/dev/null"
+
+# 4) Wareneingang-Reconcile (06–18 Uhr alle 2h)
+0 6-18/2 * * * root flock -n /var/lock/rueckstand_reconcile.lock -c "$CURLUA 'http://example.internal/public/reconcile_inbound.php?days=5' >/dev/null"

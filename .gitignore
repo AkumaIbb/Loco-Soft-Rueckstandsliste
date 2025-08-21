@@ -1,0 +1,20 @@
+# ENV/Secrets
+.env
+.env.*
+*.env
+*.env.*
+
+# Allow template
+!.env.example
+
+# Editor
+/.idea/
+/.vscode/
+
+# App-spezifisch
+/app/vendor/
+/app/cron/rueckstand
+
+# Import-Folder: alles ignorieren außer .gitkeep
+/app/Import-Folder/*
+!/app/Import-Folder/.gitkeep
