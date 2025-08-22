@@ -9,7 +9,6 @@ use Throwable;
 class PgDueDateSync
 {
     private PDODb $db;
-    private string $dbName = 'Rueckstaende';
     private $pg; // pgsql connection
     private bool $debug;
 
@@ -52,7 +51,7 @@ class PgDueDateSync
         $whereRun = '';
         if (!$allRuns) {
             $run = $this->db->rawQuery(
-                "SELECT id FROM {$this->dbName}.import_runs
+                "SELECT id FROM import_runs
                  WHERE source_system='main'
                  ORDER BY imported_at DESC, id DESC
                  LIMIT 1"
@@ -69,7 +68,7 @@ class PgDueDateSync
         // Kandidaten: VOLV/POLE, Bestellart 5–8, mit bezugs_auftrags_nr
         $orders = $this->db->rawQuery(
             "SELECT o.id, o.bezugs_auftrags_nr, o.rueck_ab_date
-               FROM {$this->dbName}.backlog_orders o
+               FROM backlog_orders o
               WHERE UPPER(o.bestellkonzern) IN ('VOLV','POLE')
                 AND o.bezugs_auftrags_nr IS NOT NULL
                 AND o.bezugs_auftrags_nr <> ''
@@ -105,7 +104,7 @@ class PgDueDateSync
 
             // Update in MySQL
             $this->db->rawQuery(
-                "UPDATE {$this->dbName}.backlog_orders
+                "UPDATE backlog_orders
                     SET rueck_ab_date = ?, rueck_rule_note = NULL, updated_at = NOW()
                   WHERE id = ?",
                 [ $due, $orderId ]

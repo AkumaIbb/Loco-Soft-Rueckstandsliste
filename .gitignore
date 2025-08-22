@@ -4,8 +4,11 @@
 *.env
 *.env.*
 
+# Backups/tests
+*.bak
+
 # Allow template
-!.env.example
+!*.env.example
 
 # Editor
 /.idea/

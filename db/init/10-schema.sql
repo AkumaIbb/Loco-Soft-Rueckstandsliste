@@ -16,6 +16,7 @@
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
+USE `rueckstand`;
 --
 -- Table structure for table `backlog_annotations`
 --
@@ -39,7 +40,7 @@ CREATE TABLE `backlog_annotations` (
   KEY `idx_angemahnt` (`angemahnt`),
   KEY `idx_serviceberater` (`serviceberater`),
   CONSTRAINT `fk_annotations_order` FOREIGN KEY (`order_id`) REFERENCES `backlog_orders` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=1046 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1046 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -85,7 +86,7 @@ CREATE TABLE `backlog_orders` (
   KEY `idx_rueckstand` (`rueckstands_menge`),
   KEY `idx_typ` (`typ`),
   CONSTRAINT `fk_backlog_orders_import` FOREIGN KEY (`import_run_id`) REFERENCES `import_runs` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=2269 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2269 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -108,7 +109,7 @@ CREATE TABLE `import_runs` (
   `supplier` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_imported_at` (`imported_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -130,7 +131,7 @@ CREATE TABLE `reconciliation_links` (
   KEY `fk_recon_order` (`order_id`),
   CONSTRAINT `fk_recon_order` FOREIGN KEY (`order_id`) REFERENCES `backlog_orders` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_recon_supplier` FOREIGN KEY (`supplier_item_id`) REFERENCES `supplier_import_items` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -171,7 +172,7 @@ CREATE TABLE `supplier_import_items` (
   KEY `idx_vsl_vz` (`vsl_lt_vz`),
   KEY `idx_aenderung` (`aenderungsdatum`),
   CONSTRAINT `fk_supplier_import_run` FOREIGN KEY (`import_run_id`) REFERENCES `import_runs` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --

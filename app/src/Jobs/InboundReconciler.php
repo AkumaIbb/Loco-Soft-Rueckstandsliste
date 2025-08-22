@@ -12,7 +12,6 @@ class InboundReconciler
     /** @var resource|null */
     private $pg = null;
     private bool $debug = false;
-    private string $dbName = 'Rueckstaende';
 
     public function __construct(PDODb $db, bool $debug = false)
     {
@@ -131,7 +130,7 @@ class InboundReconciler
             if ($type === 'B') { // parts_order_number -> bestellnummer
                 $rows = $this->db->rawQuery("
                     SELECT id, bestellnummer, bezugs_auftrags_nr, teile_nr, rueckstands_menge
-                    FROM {$this->dbName}.backlog_orders
+                    FROM backlog_orders
                     WHERE teile_nr = ?
                       AND bestellnummer = ?
                     ORDER BY id
@@ -139,7 +138,7 @@ class InboundReconciler
             } else {             // referenced_order_number -> bezugs_auftrags_nr
                 $rows = $this->db->rawQuery("
                     SELECT id, bestellnummer, bezugs_auftrags_nr, teile_nr, rueckstands_menge
-                    FROM {$this->dbName}.backlog_orders
+                    FROM backlog_orders
                     WHERE teile_nr = ?
                       AND bezugs_auftrags_nr = ?
                     ORDER BY id
@@ -160,7 +159,7 @@ class InboundReconciler
 
                 if ($open === null) {
                     // Keine offene Menge gepflegt -> als vollständige Erledigung annehmen
-                    $this->db->rawQuery("DELETE FROM {$this->dbName}.backlog_orders WHERE id = ?", [ $id ]);
+                    $this->db->rawQuery("DELETE FROM backlog_orders WHERE id = ?", [ $id ]);
                     $deleted++;
                     $actions[] = "DEL id={$id} (ohne rueckstands_menge)";
                     if ($this->debug) $this->out("DEL id={$id} (ohne rueckstands_menge)");
@@ -171,7 +170,7 @@ class InboundReconciler
 
                 if ($remaining >= $open - 1e-6) {
                     // Vollständig erledigt
-                    $this->db->rawQuery("DELETE FROM {$this->dbName}.backlog_orders WHERE id = ?", [ $id ]);
+                    $this->db->rawQuery("DELETE FROM backlog_orders WHERE id = ?", [ $id ]);
                     $deleted++;
                     $actions[] = "DEL id={$id} (war {$open}, geliefert {$remaining})";
                     if ($this->debug) $this->out("DEL id={$id} (war {$open}, geliefert {$remaining})");
@@ -180,7 +179,7 @@ class InboundReconciler
                     // Teil-Lieferung -> offene Menge reduzieren
                     $newOpen = max(0, $open - $remaining);
                     $this->db->rawQuery("
-                        UPDATE {$this->dbName}.backlog_orders
+                        UPDATE backlog_orders
                            SET rueckstands_menge = ?
                          WHERE id = ?
                     ", [ $newOpen, $id ]);

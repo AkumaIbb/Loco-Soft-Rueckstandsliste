@@ -9,7 +9,6 @@ use Throwable;
 class ServiceberaterSync
 {
     private PDODb $db;
-    private string $dbName = 'Rueckstaende';
     private $pg; // pgsql resource
 
     private bool $debug;
@@ -52,7 +51,7 @@ class ServiceberaterSync
 
         // Letzter Importlauf
         $run = $this->db->rawQuery(
-            "SELECT id FROM {$this->dbName}.import_runs
+            "SELECT id FROM import_runs
              WHERE source_system='main'
              ORDER BY imported_at DESC, id DESC
              LIMIT 1"
@@ -66,7 +65,7 @@ class ServiceberaterSync
         // Alle Orders dieses Laufs
 		$orders = $this->db->rawQuery(
 			"SELECT o.id, o.bezugs_auftrags_nr
-			   FROM {$this->dbName}.backlog_orders o
+			   FROM backlog_orders o
 			  WHERE o.import_run_id = ?
 				AND o.bezugs_auftrags_nr IS NOT NULL
 				AND o.bezugs_auftrags_nr <> ''",
@@ -82,8 +81,8 @@ class ServiceberaterSync
         if (!$forceOverwrite) {
             $rows = $this->db->rawQuery(
                 "SELECT a.order_id, a.serviceberater
-                   FROM {$this->dbName}.backlog_annotations a
-                   JOIN {$this->dbName}.backlog_orders o ON o.id = a.order_id
+                   FROM backlog_annotations a
+                   JOIN backlog_orders o ON o.id = a.order_id
                   WHERE o.import_run_id = ?", [ $runId ]
             );
             foreach ($rows as $r) {
@@ -112,7 +111,7 @@ class ServiceberaterSync
             $empNo = $this->pgEmpNoForOrder($num);
             if (!$empNo) {
                 $notFound++;
-                if ($this->debug) $this->out("Kein order_created_employee_no für Auftragsnr={$num}");
+                if ($this->debug) $this->out("Kein created_employee_no für Auftragsnr={$num}");
                 continue;
             }
 
@@ -147,14 +146,14 @@ class ServiceberaterSync
     private function pgEmpNoForOrder(string $orderNumber): ?string
     {
         // Achtung SQL-Injection vermeiden → pg_query_params
-        $sql = "SELECT order_created_employee_no
+        $sql = "SELECT created_employee_no
                   FROM orders
                  WHERE number = $1
                  LIMIT 1";
         $res = pg_query_params($this->pg, $sql, [ $orderNumber ]);
         if (!$res) return null;
         $row = pg_fetch_assoc($res);
-        return $row && !empty($row['order_created_employee_no']) ? trim((string)$row['order_created_employee_no']) : null;
+        return $row && !empty($row['created_employee_no']) ? trim((string)$row['created_employee_no']) : null;
     }
 
     private function pgEmployeeName(string $employeeNumber): ?string
@@ -172,7 +171,7 @@ class ServiceberaterSync
     private function upsertAnnotation(int $orderId, string $serviceberater): void
     {
         // INSERT … ON DUPLICATE KEY UPDATE
-        $sql = "INSERT INTO {$this->dbName}.backlog_annotations (order_id, serviceberater, updated_by)
+        $sql = "INSERT INTO backlog_annotations (order_id, serviceberater, updated_by)
                 VALUES (?, ?, 'pg-sync')
                 ON DUPLICATE KEY UPDATE
                   serviceberater = VALUES(serviceberater),

@@ -1,33 +1,35 @@
-version: '3.8'
-
 services:
-  app:
+  web:
     build: .
+    container_name: app-web
     ports:
       - "8080:80"
-    env_file: docker-compose.env
+    env_file:
+      - .env
+    volumes:
+      # Dein PHP-Projekt
+      - ./app:/var/www/html
+      # Import-Ordner 1:1 in den Container
+      - /mnt/Import-Folder:/mnt/Import-Folder
     depends_on:
       - mysql
-    volumes:
-      - import-folder:/mnt/Import-Folder
+    restart: unless-stopped
+    # Composer beim Start ausführen (installiert Vendor beim ersten Run)
+    command: >
+      bash -lc "composer install --no-interaction --prefer-dist &&
+                apache2-foreground"
 
   mysql:
-    image: mariadb:10.6
-    env_file: docker-compose.env
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    image: mysql:8.0
+    container_name: app-mysql
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "3306:3306"
     volumes:
-      - mysql-data:/var/lib/mysql
-      - ./app/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d:ro
+      - db_data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d:ro
 
 volumes:
-  import-folder:
-    driver: local
-    driver_opts:
-      type: cifs
-      o: username=${IMPORT_USER},password=${IMPORT_PASSWORD},vers=3.0
-      device: ${IMPORT_SHARE}
-  mysql-data:
+  db_data:

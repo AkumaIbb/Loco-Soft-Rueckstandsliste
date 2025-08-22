@@ -15,7 +15,6 @@ class ExcelImporter
 {
     private PDODb $db;
     private string $excelPath;
-    private string $dbName = 'Rueckstaende';
     private bool $debug;
 
     private array $seenKeys = [];     // ["KONZERN|BESTELLNR|TEILENR" => true]
@@ -217,7 +216,7 @@ class ExcelImporter
 
         // Importlauf protokollieren
         $fileHash = hash_file('sha256', $this->excelPath);
-        $sqlRun = "INSERT INTO {$this->dbName}.import_runs
+        $sqlRun = "INSERT INTO import_runs
             (source_filename, source_path, imported_at, rows_total, rows_ok, file_hash, notes, source_system, supplier)
             VALUES (?, ?, NOW(), ?, ?, ?, ?, 'main', NULL)";
         $this->db->rawQuery($sqlRun, [
@@ -237,7 +236,7 @@ class ExcelImporter
 
         // UPSERT (inkl. description & Rückstandslogik)
         $sqlUpsert = "
-            INSERT INTO {$this->dbName}.backlog_orders
+            INSERT INTO backlog_orders
             (import_run_id, typ, bestellkonzern, bestelldatum, bestellnummer, bestellart, lieferant,
              bezugs_kunden_nr, bezugs_auftrags_nr, teile_nr, description, teileart,
              bestell_menge, bestell_wert, rueckstands_menge, rueckstands_wert,
@@ -414,7 +413,7 @@ class ExcelImporter
         }
 
         // Statistik aktualisieren
-        $this->db->rawQuery("UPDATE {$this->dbName}.import_runs SET rows_total=?, rows_ok=? WHERE id=?",
+        $this->db->rawQuery("UPDATE import_runs SET rows_total=?, rows_ok=? WHERE id=?",
             [$this->rowsTotal, $this->rowsOk, $this->importRunId]);
 
         // --- Mark-and-sweep (global, da Datei alle Konzerne enthält) ---
@@ -440,12 +439,12 @@ class ExcelImporter
         // Kandidaten, die heute NICHT geliefert wurden
         $sqlToDelete = "
           SELECT o.id, o.bestellkonzern, o.bestellnummer, o.teile_nr, a.serviceberater
-          FROM {$this->dbName}.backlog_orders o
+          FROM backlog_orders o
           LEFT JOIN tmp_seen_keys t
             ON t.bestellkonzern = o.bestellkonzern
            AND t.bestellnummer  = o.bestellnummer
            AND t.teile_nr       = o.teile_nr
-          LEFT JOIN {$this->dbName}.backlog_annotations a
+          LEFT JOIN backlog_annotations a
             ON a.order_id = o.id
           WHERE t.bestellnummer IS NULL
         ";
@@ -466,7 +465,7 @@ class ExcelImporter
             $ids = array_column($candidates, 'id');
             foreach (array_chunk($ids, 1000) as $chunk) {
                 $place = implode(',', array_fill(0, count($chunk), '?'));
-                $this->db->rawQuery("DELETE FROM {$this->dbName}.backlog_orders WHERE id IN ($place)", $chunk);
+                $this->db->rawQuery("DELETE FROM backlog_orders WHERE id IN ($place)", $chunk);
             }
         }
 

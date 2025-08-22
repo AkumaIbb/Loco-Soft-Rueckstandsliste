@@ -131,7 +131,7 @@ ORDER BY name");
     }
 } catch (\Throwable $e) { /* ignore */ }
 if (!$sbNames) {
-    $rowsTmp = $db->rawQuery("SELECT DISTINCT serviceberater FROM Rueckstaende.backlog_annotations WHERE serviceberater IS NOT NULL AND serviceberater <> '' ORDER BY serviceberater");
+    $rowsTmp = $db->rawQuery("SELECT DISTINCT serviceberater FROM backlog_annotations WHERE serviceberater IS NOT NULL AND serviceberater <> '' ORDER BY serviceberater");
     foreach ($rowsTmp as $r) { $sbNames[] = $r['serviceberater']; }
 }
 $sbNames = array_values(array_unique(array_filter($sbNames, fn($x)=>trim((string)$x) !== '')));
@@ -165,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ang = array_key_exists($id, $angMap) ? 1 : 0;
         $ki  = array_key_exists($id, $kiMap)  ? 1 : 0;
 
-        $sql = "INSERT INTO Rueckstaende.backlog_annotations
+        $sql = "INSERT INTO backlog_annotations
                     (order_id, voraussichtlicher_liefertermin, serviceberater, angemahnt, kundeninfo, kommentar, updated_by)
                 VALUES (?, ?, ?, ?, ?, ?, 'web-ui')
                 ON DUPLICATE KEY UPDATE
@@ -208,16 +208,16 @@ SELECT
   COALESCE(s1.vsl_lt_vz, s1.vsl_lt_sap,
            s2.vsl_lt_vz, s2.vsl_lt_sap,
            s3.vsl_lt_vz, s3.vsl_lt_sap)       AS vlt_lieferant
-FROM Rueckstaende.backlog_orders o
-LEFT JOIN Rueckstaende.backlog_annotations a
+FROM backlog_orders o
+LEFT JOIN backlog_annotations a
   ON a.order_id = o.id
-LEFT JOIN Rueckstaende.supplier_import_items s1
+LEFT JOIN supplier_import_items s1
   ON s1.auftragsnummer = o.bezugs_auftrags_nr
  AND s1.teilenummer    = o.teile_nr
-LEFT JOIN Rueckstaende.supplier_import_items s2
+LEFT JOIN supplier_import_items s2
   ON s2.auftragsnummer = o.bestellnummer
  AND s2.teilenummer    = o.teile_nr
-LEFT JOIN Rueckstaende.supplier_import_items s3
+LEFT JOIN supplier_import_items s3
   ON CAST(REGEXP_SUBSTR(s3.kundenreferenz, '[0-9]+') AS UNSIGNED) = CAST(o.bezugs_auftrags_nr AS UNSIGNED)
  AND s3.teilenummer    = o.teile_nr
 WHERE o.rueckstand_relevant = 1
