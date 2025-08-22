@@ -53,13 +53,32 @@ Das Installationsscript macht den Rest:
 - Die Zugangsdaten für die interne Datenbank des Tools können festgelegt werden (Alternativ einfach bestätigen)
 - Die Zugangsdaten für die Loco-Soft Postgres-Datenbank müssen festgelegt werden.
 - Zugangsdaten für eine Netzwerkfreigabe müssen eingegeben werden
-(!!!) Fallstrick: Bitte wie folgt angeben:
 
+(!!!) Fallstrick: Bitte wie folgt angeben:
+Samba Domäne: Die Windows-Domäne (z.b. autohaus.local)
+Samba Benutzername: Benutzername für die Windows-Domäne (optimalerweise ein Dienstkonto, dass das Passwort nicht ändert)
+Samba Server: Name des Servers, auf dem später die Bestelldatei bereitgestellt wird. (z.B. loco)
+Samba Share Pfad: Pfad zum Freigabeverzeichnis OHNE führenden / (z.B. Abteilungsordner/Ersatzteillager/Bestellungen)
+Samba Passwort: Das Passwort des Windows-Benutzers
 ```shell
 sudo ./setup_rueckstand.sh
 ```
 
+## Sollte der Mount fehlschlagen bitte die folgenden Dateien kontrollieren:
+```shell
+sudo nano /etc/fstab # => Korrekter Pfad angegeben?
+sudo nano /root//root/.rueckstand-smbcred # => Korrekte Benutzerdaten angegeben?
+```
 
+Danach manuell ausführen:
+```shell
+sudo systemctl daemon-reload
+sudo mount -a
+```
+
+## Docker Container Starten:
+
+docker compose up -d --build
 
 
 ---

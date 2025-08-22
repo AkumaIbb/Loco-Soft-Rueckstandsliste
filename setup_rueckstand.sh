@@ -171,7 +171,7 @@ echo "==> Samba-Zugangsdaten (werden in ${SMB_CRED} gespeichert)"
 SMB_DOMAIN="$(one_line "$(prompt_default "Samba Domäne (leer falls keine)" "")")"
 SMB_USER="$(one_line "$(prompt_required "Samba Benutzername")")"
 SMB_HOST="$(one_line "$(prompt_required "Samba Server (Hostname oder IP)")")"
-SMB_SHARE_PATH="$(one_line "$(prompt_required "Samba Share-Pfad (z.B. /Abteilungsordner/Ersatzteillager/Bestellungen)")")"
+SMB_SHARE_PATH="$(one_line "$(prompt_required "Samba Share-Pfad (z.B. Abteilungsordner/Ersatzteillager/Bestellungen)")")"
 SMB_PASS="$(one_line "$(prompt_secret_required "Samba Passwort")")"
 
 # Credentials-Datei
