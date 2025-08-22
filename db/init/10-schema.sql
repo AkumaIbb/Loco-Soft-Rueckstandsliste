@@ -228,6 +228,29 @@ CREATE TABLE `imports` (
 
 --
 
+-- Table structure for table `smtp_servers`
+--
+
+DROP TABLE IF EXISTS `smtp_servers`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `smtp_servers` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `host` varchar(255) NOT NULL,
+  `port` int(11) NOT NULL,
+  `auth` tinyint(1) DEFAULT 1,
+  `username` varchar(255) DEFAULT NULL,
+  `password` varchar(255) DEFAULT NULL,
+  `from_address` varchar(255) NOT NULL,
+  `from_name` varchar(255) DEFAULT NULL,
+  `reply_to` varchar(255) DEFAULT NULL,
+  `reply_to_name` varchar(255) DEFAULT NULL,
+  `verify_ssl` tinyint(1) DEFAULT 1,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 
 -- Temporary table structure for view `v_backlog_list`
 --
