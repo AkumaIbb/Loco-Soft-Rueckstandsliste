@@ -176,6 +176,23 @@ CREATE TABLE `supplier_import_items` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `delivery_terms`
+--
+
+DROP TABLE IF EXISTS `delivery_terms`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `delivery_terms` (
+  `bestellart` tinyint(3) unsigned NOT NULL COMMENT 'Bestellart 0-99',
+  `tage_bis_rueckstand` smallint unsigned DEFAULT NULL COMMENT 'Tage nach Bestelldatum',
+  `use_order_date` tinyint(1) NOT NULL DEFAULT 0 COMMENT '1=Auftragsdatum verwenden',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`bestellart`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Temporary table structure for view `v_backlog_list`
 --
 
