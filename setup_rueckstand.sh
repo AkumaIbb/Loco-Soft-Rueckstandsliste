@@ -90,8 +90,6 @@ require_root
 # Pfade
 ENV_EXAMPLE="docker-compose.env.example"
 ENV_OUT=".env"
-SCHEMA_SRC="db/init/schema.sql.dist"
-SCHEMA_OUT="db/init/schema.sql"
 CRON_TEMPLATE="cron/rueckstand.dist"
 CRON_TARGET="/etc/cron.d/rueckstand"
 SMB_CRED="/root/.rueckstand-smbcred"
@@ -102,10 +100,6 @@ FSTAB_BAK="/etc/fstab.rueckstand.bak.$(date +%s)"
 # Vorbedingungen
 if [[ ! -f "$ENV_EXAMPLE" ]]; then
   echo "Fehlend: $ENV_EXAMPLE (im aktuellen Verzeichnis)." >&2
-  exit 1
-fi
-if [[ ! -f "$SCHEMA_SRC" ]]; then
-  echo "Fehlend: $SCHEMA_SRC – lege die .dist-Datei an (und ignoriere db/init/schema.sql im Git)." >&2
   exit 1
 fi
 if [[ ! -f "$CRON_TEMPLATE" ]]; then
@@ -164,24 +158,13 @@ replace_or_append "POSTGRES_PASSWORD" "$POSTGRES_PASSWORD"
 
 echo "==> ${ENV_OUT} erstellt/aktualisiert."
 
-# schema.sql aus .dist erzeugen und Passwort ersetzen
-echo "==> Erzeuge ${SCHEMA_OUT} aus ${SCHEMA_SRC} und setze Passwort ein…"
-cp "$SCHEMA_SRC" "$SCHEMA_OUT"
-# Normalisieren (CRLF -> LF)
-sed -i 's/\r$//' "$SCHEMA_OUT"
-# Passwort für sed-Replacement sicher escapen (/ & \)
-PW_ESCAPED="$(printf '%s' "$MYSQL_PASSWORD" | sed -e 's/[\/&\\]/\\&/g')"
-sed -i "s/REPLACE_WITH_\${MYSQL_PASSWORD}/$PW_ESCAPED/g" "$SCHEMA_OUT"
-
 # Ownership & Rechte für ENV und Schema setzen (gehören dem späteren Compose-User)
 TARGET_USER="$(detect_user)"
 TARGET_GROUP="$(detect_group)"
-chown "$TARGET_USER:$TARGET_GROUP" "$ENV_OUT" "$SCHEMA_OUT"
+chown "$TARGET_USER:$TARGET_GROUP" "$ENV_OUT"
 chmod 600 "$ENV_OUT"
-chmod 644 "$SCHEMA_OUT"
 
 echo "==> ${ENV_OUT} gehört jetzt ${TARGET_USER}:${TARGET_GROUP} (0600)."
-echo "==> ${SCHEMA_OUT} gehört jetzt ${TARGET_USER}:${TARGET_GROUP} (0644)."
 
 # Samba-Zugangsdaten (NICHT in .env)
 echo "==> Samba-Zugangsdaten (werden in ${SMB_CRED} gespeichert)"
@@ -332,7 +315,6 @@ echo
 echo "Fertig. Zusammenfassung:"
 echo "  - ${ENV_OUT} erstellt (Owner: ${TARGET_USER}:${TARGET_GROUP}, 0600)"
 echo "  - MySQL DB/User: rueckstand / rueckstand"
-echo "  - Schema-Datei: ${SCHEMA_OUT} aus ${SCHEMA_SRC} (Passwort ersetzt, 0644)"
 echo "  - SMB-Credentials: ${SMB_CRED} (0600)"
 echo "  - Mountpoint: ${MNT_DIR}"
 echo "  - Cron: ${CRON_TARGET} (Base-URL: ${BASE_URL})"
