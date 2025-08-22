@@ -4,6 +4,13 @@ Source Code für das **Loco-Soft Rückstandslistenprojekt**.
 Ziel ist es, einen schnellen Überblick für Serviceberater:innen und Teiledienstmitarbeiter:innen zu geben und Rückstände im Blick zu behalten.
 
 ---
+# Grundbedingungen
+Es wird benötigt: 
+- Eine Virtuelle Maschine (Linux, ich empfehle Ubuntu) oder ein vergleichbares Gerät (z.B. Raspberry Pi)
+- Ein Netzwerkshare (Also eine Netzwerkfreigabe), auf dem die Bestelldatei abgelegt wird.
+	Ich verwende hier das Beispiel: **\\loco.autohaus.local\Abteilungsordner\Ersatzteillager\Bestellungen**  als Beispiel für den Netzwerk-Share.
+- Ein wenig Linux-Affinität.
+
 ## Installation und Einrichtung von Docker
 siehe https://docs.docker.com/engine/install/ubuntu/ für die aktuellsten Informationen
 
@@ -59,6 +66,7 @@ Samba Domäne: Die Windows-Domäne (z.b. autohaus.local)
 Samba Benutzername: Benutzername für die Windows-Domäne (optimalerweise ein Dienstkonto, dass das Passwort nicht ändert)
 Samba Server: Name des Servers, auf dem später die Bestelldatei bereitgestellt wird. (z.B. loco)
 Samba Share Pfad: Pfad zum Freigabeverzeichnis OHNE führenden / (z.B. Abteilungsordner/Ersatzteillager/Bestellungen)
+				  Hier muss die Linux-Schreibweise mit / statt \ verwendet werden!
 Samba Passwort: Das Passwort des Windows-Benutzers
 ```shell
 sudo ./setup_rueckstand.sh
@@ -78,8 +86,51 @@ sudo mount -a
 
 ## Docker Container Starten:
 ```shell
-docker compose up -d --build
+docker compose build   #Initialisieren (nur beim ersten Start benötigt)
+docker compose up -d   #Starten
 ```
+
+Nun kann das Projekt auf der gewählten Domain mit Port 8080 aufgerufen werden.
+z.B. http://rueckstand.autohaus.local:8080
+
+## Port anpassen / SSL / Reverse Proxy
+
+Der einfachste Weg den Port anzupassen ist über die docker-compose.yml:
+```shell
+nano docker-compose.yml
+```
+
+Dort 
+```shell
+services:
+  web:
+    build: .
+    container_name: app-web
+    ports:
+      - "8080:80"
+``` 
+ändern in:
+```shell
+    ports:
+      - "8080:80"
+``` 
+
+# Bedienung
+Die Bestelldatei wird im Loco-Soft in der 572 erstellt.
+Hier gibt es die Option "Bestellübersicht drucken (F17)".
+Im "Eingrenzung"-Teil wie in Loco-Soft gewohnt alles von 0 - 999999.. bzw " " bis "ÜÜÜÜÜÜ..." füllen (Standardeinstellung)
+"Gedruckt werden sollen..." -> Alles außer "bereits erledigte Bestellungen".
+
+Nun muss die Datei als "LocoBestellung.xlsx" im Netzwerk-Share gespeichert werden.
+
+Die Datei wird dann automatisch nach Feierabend eingelesen.
+
+
+## ToDo
+- Rückstandstage flexibler machen für unterschiedliche Bestellarten
+- E-Mail-Benachrichtigung bei Rückstand
+- Einlesen von Lieferanteninformationen
+
 
 ---
 Dieses Projekt steht unter der Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).
