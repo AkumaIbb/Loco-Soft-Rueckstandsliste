@@ -194,6 +194,7 @@ CREATE TABLE `delivery_terms` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+
 -- Table structure for table `ignores`
 --
 
@@ -226,6 +227,8 @@ CREATE TABLE `imports` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+
+
 -- Temporary table structure for view `v_backlog_list`
 --
 
