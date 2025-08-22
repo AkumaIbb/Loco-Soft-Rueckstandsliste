@@ -144,6 +144,7 @@ DROP TABLE IF EXISTS `supplier_import_items`;
 CREATE TABLE `supplier_import_items` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `import_run_id` bigint(20) unsigned DEFAULT NULL,
+  `brand` varchar(100) DEFAULT NULL,
   `partnernummer` varchar(50) DEFAULT NULL,
   `auftragsnummer` varchar(100) NOT NULL,
   `teilenummer` varchar(120) NOT NULL,
@@ -173,6 +174,55 @@ CREATE TABLE `supplier_import_items` (
   KEY `idx_aenderung` (`aenderungsdatum`),
   CONSTRAINT `fk_supplier_import_run` FOREIGN KEY (`import_run_id`) REFERENCES `import_runs` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `delivery_terms`
+--
+
+DROP TABLE IF EXISTS `delivery_terms`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `delivery_terms` (
+  `bestellart` tinyint(3) unsigned NOT NULL COMMENT 'Bestellart 0-99',
+  `tage_bis_rueckstand` smallint unsigned DEFAULT NULL COMMENT 'Tage nach Bestelldatum',
+  `use_order_date` tinyint(1) NOT NULL DEFAULT 0 COMMENT '1=Auftragsdatum verwenden',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`bestellart`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `ignores`
+--
+
+DROP TABLE IF EXISTS `ignores`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ignores` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `imports`
+--
+
+DROP TABLE IF EXISTS `imports`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `imports` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `brand` varchar(100) NOT NULL,
+  `filename` varchar(255) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
