@@ -125,6 +125,7 @@ Nun muss die Datei als "LocoBestellung.xlsx" im Netzwerk-Share gespeichert werde
 Die Datei wird dann automatisch nach Feierabend eingelesen.
 
 ##Einstellungen
+
 **Die Einstellungen sollten vor dem ersten Import gesetzt werden.**
 
 Über das Zahnrad können die Einstellungen aufgerufen werden.
