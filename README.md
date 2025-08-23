@@ -157,10 +157,19 @@ Die Datei muss anschließend ins gleiche Verzeichnis gelegt werden wie die LocoB
 Die Datei wird halbstündlich eingelesen und anschließend gelöscht.
 
 ---
+# Datenschutz
+Das Projekt ist bewusst so angelegt, dass es pseudonymisiert arbeitet - es werden keine Kunden-Daten in der Datenbank gespeichert (solange diese nicht z.B. Händisch als Referenz gesetzt sind).
+Dieses Tool ist also nicht für DSGVO-Anfragen relevant.
+Die auf der Hauptseite suchbar gemachten Kundennamen (sichtbar, wenn die Maus auf die Auftragsnummer zeigt), werden direkt beim Aufruf der Seite aus der Loco-Soft Datenbank geholt.
+Lediglich die Serviceberater werden bei einem Auftrag dauerhaft in der Datenbank gespeichert.
+Der Eintrag wird nach dem Eintreffen des Rückstands gelöscht.
 
-## ToDo
+---
+# ToDo
 - E-Mail-Benachrichtigung bei Rückstand
-
+Aktuell werden Rückstände am Tag der Lieferung so lange als Rückstand erkannt, bis sie zugebucht werden.
+Das würde zu einem sehr hohen E-Mail-Aufkommen führen.
+Möglich wäre z.B. ein Call am Nachmittag, wenn alle Lieferscheine (hoffentlich) zugebucht sind.
 
 ---
 Dieses Projekt steht unter der Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).

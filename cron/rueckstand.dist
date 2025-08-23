@@ -18,3 +18,6 @@ CURLUA="curl -fsS --max-time 600 -H 'User-Agent: rueckstand-cron/1.0'"
 
 # 4) Wareneingang-Reconcile (06–18 Uhr alle 2h)
 0 6-18/2 * * * root flock -n /var/lock/rueckstand_reconcile.lock -c "$CURLUA 'http://example.internal/public/reconcile_inbound.php?days=5' >/dev/null"
+
+# 5) Halbstündiger Import der Importeurslisten
+*/30 * * * * root flock -n /var/lock/rueckstand_import_universal.lock -c "$CURLUA 'http://example.internal/public/ImportUniversal.php' >/dev/null"

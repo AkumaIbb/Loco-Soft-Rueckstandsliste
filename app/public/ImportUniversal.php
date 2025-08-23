@@ -47,7 +47,12 @@ foreach ($imports as $import) {
 
     try {
         $importer = new UniversalImporter($db, $importWithFile, $mapping, $DEBUG);
-        $results[$import['brand']] = $importer->run();
+        $result = $importer->run();
+        $results[$import['brand']] = $result;
+        if (($result['status'] ?? '') === 'ok') {
+            // Nach erfolgreicher Verarbeitung die verwendete Datei entfernen
+            @unlink($file);
+        }
     } catch (Throwable $e) {
         if ($DEBUG) {
             echo '<pre>FEHLER bei ' . htmlspecialchars($import['brand']) . ': ' .
