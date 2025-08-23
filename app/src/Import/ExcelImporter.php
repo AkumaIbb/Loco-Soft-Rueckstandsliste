@@ -209,6 +209,16 @@ class ExcelImporter
 
         $this->rowsTotal = max(0, $highestRow - $headerRow);
 
+        // Ignorierte Konzerne laden
+        $ignoreRows = $this->db->rawQuery('SELECT name FROM ignores');
+        $ignoredCompanies = [];
+        foreach ($ignoreRows as $row) {
+            $n = trim((string)($row['name'] ?? ''));
+            if ($n !== '') {
+                $ignoredCompanies[] = mb_strtoupper($n, 'UTF-8');
+            }
+        }
+
         // delivery terms
         $terms = $this->db->rawQuery('SELECT bestellart, tage_bis_rueckstand, use_order_date FROM delivery_terms');
         foreach ($terms as $row) {
@@ -347,10 +357,10 @@ class ExcelImporter
                 continue;
             }
 
-            // WÜRT komplett ignorieren
-            $konz = strtoupper($konzern);
-            if ($konz === 'WÜRT' || $konz === 'WUERT' || $konz === 'WURT') {
-                if ($this->debug) { $this->out("SKIP WÜRT bei Zeile $r"); }
+            // Ignorierte Konzerne komplett überspringen
+            $konz = mb_strtoupper($konzern, 'UTF-8');
+            if (in_array($konz, $ignoredCompanies, true)) {
+                if ($this->debug) { $this->out("SKIP $konzern bei Zeile $r"); }
                 continue;
             }
 
