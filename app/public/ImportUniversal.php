@@ -44,7 +44,7 @@ foreach ($imports as $import) {
             echo htmlspecialchars('Mapping nicht gefunden für Brand ' . $import['brand']) . "<br>";
         }
         continue;
-=======
+
 $results = [];
 foreach ($imports as $import) {
     $pattern = $importFolder . '/' . $import['filename'];
