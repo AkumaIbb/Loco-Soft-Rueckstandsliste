@@ -124,7 +124,7 @@ Im "Eingrenzung"-Teil wie in Loco-Soft gewohnt alles von 0 - 999999.. bzw " " bi
 Nun muss die Datei als "LocoBestellung.xlsx" im Netzwerk-Share gespeichert werden.
 Die Datei wird dann automatisch nach Feierabend eingelesen.
 
-##Einstellungen
+## Einstellungen
 
 **Die Einstellungen sollten vor dem ersten Import gesetzt werden.**
 
