@@ -248,6 +248,7 @@ sort($activeSbs, SORT_NATURAL | SORT_FLAG_CASE);
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; }
     .header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
     .header h1 { margin:0; font-size:1.5em; }
+    .settings-link { text-decoration:none; font-size:24px; }
     .searchbox { display:flex; align-items:center; gap:6px; flex:1; max-width:420px; }
     .searchbox input { flex:1; padding:6px 10px; border:1px solid #ccc; border-radius:6px; }
 
@@ -321,6 +322,7 @@ sort($activeSbs, SORT_NATURAL | SORT_FLAG_CASE);
       <input id="liveSearch" type="text" placeholder="Suchen … (Konzern, Auftrag, Kundenname, Teil, Bezeichnung, Kommentar, SB)">
       <button class="btn" type="button" id="clearSearch" title="Suche löschen">✕</button>
     </div>
+   <a href="src/settings.php" class="settings-link" title="Einstellungen">⚙️</a>
   </div>
 
   <?php if ($flash): ?><div class="flash ok"><?=h($flash)?></div><?php endif; ?>
