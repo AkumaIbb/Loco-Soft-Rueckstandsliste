@@ -63,11 +63,17 @@ Das Installationsscript macht den Rest:
 
 (!!!) Fallstrick: Bitte wie folgt angeben:
 Samba Domäne: Die Windows-Domäne (z.b. autohaus.local)
+
 Samba Benutzername: Benutzername für die Windows-Domäne (optimalerweise ein Dienstkonto, dass das Passwort nicht ändert)
+
 Samba Server: Name des Servers, auf dem später die Bestelldatei bereitgestellt wird. (z.B. loco)
+
 Samba Share Pfad: Pfad zum Freigabeverzeichnis OHNE führenden / (z.B. Abteilungsordner/Ersatzteillager/Bestellungen)
+
 				  Hier muss die Linux-Schreibweise mit / statt \ verwendet werden!
 Samba Passwort: Das Passwort des Windows-Benutzers
+
+
 ```shell
 sudo ./setup_rueckstand.sh
 ```
