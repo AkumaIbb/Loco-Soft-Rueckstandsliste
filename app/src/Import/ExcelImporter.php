@@ -373,7 +373,7 @@ class ExcelImporter
             // Rückstandsdaten berechnen
             $rueckstand_relevant = 1;
             $rueck_rule_note = null;
-            $rueck_ab_date = $this->addDays(date('Y-m-d'), 1); // Default 1 Tag ab heute
+            $rueck_ab_date = $this->addDays($bestelldatum, 1); // Default 1 Tag ab Bestelldatum
 
             if ($bestellartInt !== null && isset($this->deliveryTerms[$bestellartInt])) {
                 $term = $this->deliveryTerms[$bestellartInt];
@@ -388,7 +388,7 @@ class ExcelImporter
                         $rueck_rule_note = 'PG orders.number nicht gefunden';
                     }
                 } else {
-                    $rueck_ab_date = $this->addDays(date('Y-m-d'), $tage);
+                    $rueck_ab_date = $this->addDays($bestelldatum, $tage);
                 }
             }
 
