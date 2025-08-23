@@ -122,9 +122,40 @@ Im "Eingrenzung"-Teil wie in Loco-Soft gewohnt alles von 0 - 999999.. bzw " " bi
 "Gedruckt werden sollen..." -> Alles außer "bereits erledigte Bestellungen".
 
 Nun muss die Datei als "LocoBestellung.xlsx" im Netzwerk-Share gespeichert werden.
-
 Die Datei wird dann automatisch nach Feierabend eingelesen.
 
+#Einstellungen
+**Die Einstellungen sollten vor dem ersten Import gesetzt werden.**
+
+Über das Zahnrad können die Einstellungen aufgerufen werden.
+Hier können hinterlegt werden:
+1) Lieferkonditionen
+Wie viele Werktage nach Bestellung muss Ware eintreffen um nicht als Rückständig markiert zu werden (Standard: 1)
+Als "Nummer" muss hier die Nummer eingetragen werden, die in der 572 als Lieferkondition angezeigt wird.
+
+2) Ignores
+Hier können Marken eingetragen werden, die beim Import ignoriert werden sollen. 
+Der Name muss dem 4-Stelligen Format aus der Kopfzeile in der 572 entsprechen, z.B. "HYUN"
+
+3) SMTP Server
+Vorbereitung, noch nicht implementiert
+
+**Neuen Import anlegen:**
+Über den Link kommt ihr auf die Einstellungen für einen CSV/Excel-Importer.
+Hier kann eine Datei Probe-Hochgeladen werden, der Importer ließt dann die Spaltenbezeichnungen aus und ermöglicht diese mit der Datenbank zu matchen.
+Um eine Bestellung zu verknüpfen sind mindestens erforderlich:
+Teilenummer 
+Kundenreferenz
+Anlagedatum
+Die Kundenreferenz wird hierbei bereinigt und macht z.B. aus den OTLG Referenzen ("A206058/1;K27502;F31") eine Auftragsnummer.
+
+Über einen Dateinamenfilter können die Dateien automatisch Marken zugewiesen werden.
+Ich empfehle etwas wie "LIEFERANT Rückstandsliste datum.csv" mit dem entsprechenden Filter "LIEFERANT Rückstandsliste *.csv"
+
+Die Datei muss anschließend ins gleiche Verzeichnis gelegt werden wie die LocoBestellung.xlsx
+Die Datei wird halbstündlich eingelesen und anschließend gelöscht.
+
+	-
 
 ## ToDo
 - Rückstandstage flexibler machen für unterschiedliche Bestellarten

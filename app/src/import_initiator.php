@@ -21,8 +21,8 @@ $nextMapId  = (int)($nextMapRow['next_id'] ?? 1);
 // verfügbare Zielfelder
 $fields = [
     'partnernummer'     => 'Partnernummer',
-    'auftragsnummer'    => 'Auftragsnummer *',
-    'teilenummer'       => 'Teilenummer',
+    'auftragsnummer'    => 'Auftragsnummer',
+    'teilenummer'       => 'Teilenummer *',
     'kundenreferenz'    => 'Kundenreferenz *',
     'anlagedatum'       => 'Anlagedatum *',
     'auftragsart'       => 'Auftragsart',
@@ -363,7 +363,7 @@ $maps = $db->rawQuery('
   <?php endforeach; ?>
   </tbody>
 </table>
-<p>Pflichtfelder: Auftragsnummer, Anlagedatum, Kundenreferenz.</p>
+<p>Pflichtfelder: Teilenummer, Anlagedatum, Kundenreferenz.</p>
 <button type="submit" class="btn">Speichern</button>
 </form>
 <?php endif; ?>
