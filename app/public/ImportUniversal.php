@@ -10,37 +10,47 @@ require_once $PROJECT_ROOT . '/config/mysql_data.php';
 $DEBUG = isset($_GET['debug']) && $_GET['debug'] === '1';
 if ($DEBUG) { ini_set('display_errors','1'); error_reporting(E_ALL); }
 
-$brand = $_GET['brand'] ?? '';
-if ($brand === '') {
-    http_response_code(400);
-    exit('Parameter "brand" fehlt');
+$importFolder = realpath($PROJECT_ROOT . '/Import-Folder') ?: $PROJECT_ROOT . '/Import-Folder';
+
+$imports = $db->rawQuery('SELECT * FROM imports');
+if (!$imports) {
+    http_response_code(404);
+    exit('Keine Imports gefunden');
 }
 
-$import = $db->rawQueryOne('SELECT * FROM imports WHERE brand = ?', [$brand]);
-if (!$import) {
-    http_response_code(404);
-    exit('Import nicht gefunden');
-}
-$mapping = $db->rawQueryOne('SELECT * FROM import_mapping WHERE id = ?', [$import['map_id']]);
-if (!$mapping) {
-    http_response_code(404);
-    exit('Mapping nicht gefunden');
+$results = [];
+foreach ($imports as $import) {
+    $pattern = $importFolder . '/' . $import['filename'];
+    $files = glob($pattern);
+    if (!$files) {
+        if ($DEBUG) {
+            echo htmlspecialchars('Keine Datei für Brand ' . $import['brand'] . ' gefunden') . "<br>";
+        }
+        continue;
+    }
+
+    $mapping = $db->rawQueryOne('SELECT * FROM import_mapping WHERE id = ?', [$import['map_id']]);
+    if (!$mapping) {
+        if ($DEBUG) {
+            echo htmlspecialchars('Mapping nicht gefunden für Brand ' . $import['brand']) . "<br>";
+        }
+        continue;
+    }
+
+    try {
+        $importer = new UniversalImporter($db, $import, $mapping, $DEBUG);
+        $results[$import['brand']] = $importer->run();
+    } catch (Throwable $e) {
+        if ($DEBUG) {
+            echo '<pre>FEHLER bei ' . htmlspecialchars($import['brand']) . ': ' .
+                htmlspecialchars($e->getMessage()) . "\n" . htmlspecialchars($e->getTraceAsString()) . '</pre>';
+        } else {
+            $results[$import['brand']] = ['status' => 'error', 'message' => $e->getMessage()];
+        }
+    }
 }
 
-try {
-    $importer = new UniversalImporter($db, $import, $mapping, $DEBUG);
-    $result = $importer->run();
-    if (!$DEBUG) {
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode($result);
-    }
-} catch (Throwable $e) {
-    if ($DEBUG) {
-        http_response_code(500);
-        echo '<pre>FEHLER: ' . htmlspecialchars($e->getMessage()) . "\n" . htmlspecialchars($e->getTraceAsString()) . '</pre>';
-    } else {
-        http_response_code(500);
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
-    }
+if (!$DEBUG) {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($results);
 }
