@@ -10,7 +10,7 @@ require_once $PROJECT_ROOT . '/config/mysql_data.php';
 $DEBUG = isset($_GET['debug']) && $_GET['debug'] === '1';
 if ($DEBUG) { ini_set('display_errors','1'); error_reporting(E_ALL); }
 
-$importFolder = realpath($PROJECT_ROOT . '/Import-Folder') ?: $PROJECT_ROOT . '/Import-Folder';
+$importFolder = '/mnt/Import-Folder';
 
 $imports = $db->rawQuery('SELECT * FROM imports');
 if (!$imports) {
@@ -58,7 +58,8 @@ foreach ($imports as $import) {
     }
 }
 
-if (!$DEBUG) {
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode($results);
+if ($DEBUG) {
+    echo "<pre>Import-Folder: " . htmlspecialchars($importFolder) . "\n";
+    echo "Pattern: " . htmlspecialchars($pattern) . "\n";
+    echo "Gefundene Dateien:\n" . print_r($files, true) . "</pre>";
 }

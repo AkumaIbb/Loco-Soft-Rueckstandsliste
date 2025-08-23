@@ -22,7 +22,7 @@ class UniversalImporter
         $this->import = $import;
         $this->mapping = $mapping;
         $this->debug = $debug;
-        $this->importFolder = realpath(__DIR__ . '/../../Import-Folder') ?: __DIR__ . '/../../Import-Folder';
+        $this->importFolder = '/mnt/Import-Folder';
     }
 
     private function out(string $msg): void
@@ -65,9 +65,51 @@ class UniversalImporter
         return $s === '' ? null : $s;
     }
 
-    private function rowHash(array $parts): string
+    /** Whitespace zusammenfassen */
+    private function squashSpaces(?string $s): ?string
     {
-        return hash('sha256', implode('|', array_map(fn($v)=> $v === null ? '' : (string)$v, $parts)));
+        if ($s === null) return null;
+        $s = preg_replace('~\s+~u', ' ', trim((string)$s));
+        return $s;
+    }
+
+    /** Leerstring -> null */
+    private function nullIfEmpty($s)
+    {
+        $s = trim((string)$s);
+        return $s === '' ? null : $s;
+    }
+
+    /**
+     * Erzeugt einen binären (32 Byte) SHA-256-Hash über normalisierte, inhaltsrelevante Felder
+     * – kompatibel zur OTLG-Logik (ksort + JSON_UNESCAPED_UNICODE).
+     */
+    private function rowHash(array $data): string
+    {
+        // Felder, die in den Hash einfließen (normalisiert)
+        $norm = [
+            'partnernummer'     => $this->nullIfEmpty($data['partnernummer'] ?? null),
+            'auftragsnummer'    => $this->nullIfEmpty($data['auftragsnummer'] ?? null),
+            // wie im Beispiel: Leerzeichen aus Teilenummer entfernen
+            'teilenummer'       => $this->nullIfEmpty(isset($data['teilenummer']) ? str_replace(' ', '', (string)$data['teilenummer']) : null),
+            'kundenreferenz'    => $this->nullIfEmpty($data['kundenreferenz'] ?? null),
+            'anlagedatum'       => $this->nullIfEmpty($data['anlagedatum'] ?? null),
+            'auftragsart'       => $this->nullIfEmpty($data['auftragsart'] ?? null),
+            'bestellte_menge'   => $this->nullIfEmpty($data['bestellte_menge'] ?? null),
+            'bestaetigte_menge' => $this->nullIfEmpty($data['bestaetigte_menge'] ?? null),
+            'offene_menge'      => $this->nullIfEmpty($data['offene_menge'] ?? null),
+            'vsl_lt_sap'        => $this->nullIfEmpty($data['vsl_lt_sap'] ?? null),
+            'vsl_lt_vz'         => $this->nullIfEmpty($data['vsl_lt_vz'] ?? null),
+            // Info normalisieren (Spaces squashen) und leere -> null
+            'info_vz'           => $this->nullIfEmpty($this->squashSpaces($data['info_vz'] ?? null)),
+            'aenderungsdatum'   => $this->nullIfEmpty($data['aenderungsdatum'] ?? null),
+            'teilelocator'      => $this->nullIfEmpty($data['teilelocator'] ?? null),
+        ];
+
+        ksort($norm);
+        $json = json_encode($norm, JSON_UNESCAPED_UNICODE);
+        // 32-Byte Rückgabe (binär), passend für BINARY(32)
+        return hex2bin(hash('sha256', $json));
     }
 
     public function run(): array
@@ -152,6 +194,16 @@ class UniversalImporter
                     case 'kundenreferenz':
                         $data[$field] = $this->extractOrder((string)$val);
                         break;
+                    case 'teilenummer':
+                        // wie im Beispiel: Leerzeichen entfernen
+                        $s = str_replace(' ', '', (string)$val);
+                        $s = trim($s);
+                        $data[$field] = $s === '' ? null : $s;
+                        break;
+                    case 'info_vz':
+                        $s = $this->squashSpaces((string)$val);
+                        $data[$field] = $this->nullIfEmpty($s);
+                        break;
                     default:
                         $s = trim((string)$val);
                         $data[$field] = $s === '' ? null : $s;
@@ -160,7 +212,9 @@ class UniversalImporter
             if (!$data['auftragsnummer'] || !$data['anlagedatum'] || !$data['kundenreferenz']) {
                 continue;
             }
-            $hash = $this->rowHash($data);
+
+            $hashBin = $this->rowHash($data);
+
             $sql = "INSERT INTO supplier_import_items (
                 brand, partnernummer, auftragsnummer, teilenummer, kundenreferenz, anlagedatum,
                 auftragsart, bestellte_menge, bestaetigte_menge, offene_menge,
@@ -180,7 +234,7 @@ class UniversalImporter
                 $data['brand'], $data['partnernummer'], $data['auftragsnummer'], $data['teilenummer'], $data['kundenreferenz'], $data['anlagedatum'],
                 $data['auftragsart'], $data['bestellte_menge'], $data['bestaetigte_menge'], $data['offene_menge'],
                 $data['vsl_lt_sap'], $data['vsl_lt_vz'], $data['info_vz'], $data['aenderungsdatum'], $data['teilelocator'],
-                $rowNum, $hash
+                $rowNum, $hashBin // <-- binär (32 Byte)
             ];
             $ok = $this->db->rawQuery($sql, $params);
             if ($ok !== false) $inserted++;

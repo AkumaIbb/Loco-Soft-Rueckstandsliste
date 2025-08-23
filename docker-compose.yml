@@ -7,9 +7,7 @@ services:
     env_file:
       - .env
     volumes:
-      # Dein PHP-Projekt
       - ./app:/var/www/html
-      # Import-Ordner 1:1 in den Container
       - /mnt/Import-Folder:/mnt/Import-Folder
     depends_on:
       - mysql
