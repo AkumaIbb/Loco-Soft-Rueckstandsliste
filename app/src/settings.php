@@ -195,6 +195,7 @@ th, td { border:1px solid #ddd; padding:6px 8px; vertical-align: top; }
 </head>
 <body>
 <h1>Einstellungen</h1>
+<p><a href="import_initiator.php">Neuen Import anlegen</a></p>
 <?php if ($flash): ?>
   <div class="flash <?=h($flash['type'])?>"><?=h($flash['msg'])?></div>
 <?php endif; ?>
