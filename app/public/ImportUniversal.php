@@ -44,6 +44,36 @@ foreach ($imports as $import) {
             echo htmlspecialchars('Mapping nicht gefunden für Brand ' . $import['brand']) . "<br>";
         }
         continue;
+=======
+$results = [];
+foreach ($imports as $import) {
+    $pattern = $importFolder . '/' . $import['filename'];
+    $files = glob($pattern);
+    if (!$files) {
+        if ($DEBUG) {
+            echo htmlspecialchars('Keine Datei für Brand ' . $import['brand'] . ' gefunden') . "<br>";
+        }
+        continue;
+    }
+
+    $mapping = $db->rawQueryOne('SELECT * FROM import_mapping WHERE id = ?', [$import['map_id']]);
+    if (!$mapping) {
+        if ($DEBUG) {
+            echo htmlspecialchars('Mapping nicht gefunden für Brand ' . $import['brand']) . "<br>";
+        }
+        continue;
+    }
+
+    try {
+        $importer = new UniversalImporter($db, $import, $mapping, $DEBUG);
+        $results[$import['brand']] = $importer->run();
+    } catch (Throwable $e) {
+        if ($DEBUG) {
+            echo '<pre>FEHLER bei ' . htmlspecialchars($import['brand']) . ': ' .
+                htmlspecialchars($e->getMessage()) . "\n" . htmlspecialchars($e->getTraceAsString()) . '</pre>';
+        } else {
+            $results[$import['brand']] = ['status' => 'error', 'message' => $e->getMessage()];
+        }
     }
 
     $importWithFile = $import;
@@ -60,6 +90,11 @@ foreach ($imports as $import) {
             $results[$import['brand']] = ['status' => 'error', 'message' => $e->getMessage()];
         }
     }
+}
+
+if (!$DEBUG) {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($results);
 }
 
 if (!$DEBUG) {
