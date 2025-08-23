@@ -21,9 +21,10 @@ class ExcelImporter
     private int $importRunId = 0;
     private int $rowsTotal = 0;
     private int $rowsOk = 0;
+    private array $deliveryTerms = [];    // [bestellart => ['tage_bis_rueckstand'=>int,'use_order_date'=>bool]]
 
     /** @var resource|null */
-    private $pg = null; // Postgres-Connection (nur für Parts-Description)
+    private $pg = null; // Postgres-Connection
 
     public function __construct(PDODb $db, string $excelPath, bool $debug = false)
     {
@@ -123,22 +124,22 @@ class ExcelImporter
         return mb_convert_case($s, MB_CASE_TITLE, "UTF-8");
     }
 
-    private function pgConnectForParts(): void
+    private function pgConnect(): void
     {
         if ($this->pg) return;
         $PROJECT_ROOT = realpath(__DIR__ . '/../../');
         require $PROJECT_ROOT . '/config/postgres_data.php'; // $postgresdata
         $this->pg = @pg_connect($postgresdata);             // keine Port-Manipulation
         if (!$this->pg) {
-            $this->out('WARN: Postgres (parts_master) nicht erreichbar – descriptions bleiben leer.');
+            $this->out('WARN: Postgres nicht erreichbar – benötigte Daten fehlen.');
         }
     }
 
-	private function fetchDescriptionFromPG(?string $partNo): ?string
-	{
-		if (!$partNo) return null;
-		$this->pgConnectForParts();
-		if (!$this->pg) return null;
+        private function fetchDescriptionFromPG(?string $partNo): ?string
+        {
+                if (!$partNo) return null;
+                $this->pgConnect();
+                if (!$this->pg) return null;
 
 		// 1) Exakt
 		$res = @pg_query_params(
@@ -167,8 +168,25 @@ class ExcelImporter
 			return $this->normalizeDesc($row['description']);
 		}
 
-		return null;
-	}
+                return null;
+        }
+
+        private function fetchOrderDateFromPG(?string $orderNumber): ?string
+        {
+                if (!$orderNumber) return null;
+                $this->pgConnect();
+                if (!$this->pg) return null;
+                $res = @pg_query_params(
+                        $this->pg,
+                        "SELECT order_date FROM orders WHERE number = $1 LIMIT 1",
+                        [ $orderNumber ]
+                );
+                if ($res && ($row = pg_fetch_assoc($res)) && isset($row['order_date'])) {
+                        $dt = new \DateTime($row['order_date']);
+                        return $dt->format('Y-m-d');
+                }
+                return null;
+        }
 
 
 
@@ -190,6 +208,15 @@ class ExcelImporter
         $lastColIdx = Coordinate::columnIndexFromString($highestCol);
 
         $this->rowsTotal = max(0, $highestRow - $headerRow);
+
+        // delivery terms
+        $terms = $this->db->rawQuery('SELECT bestellart, tage_bis_rueckstand, use_order_date FROM delivery_terms');
+        foreach ($terms as $row) {
+            $this->deliveryTerms[(int)$row['bestellart']] = [
+                'tage_bis_rueckstand' => isset($row['tage_bis_rueckstand']) ? (int)$row['tage_bis_rueckstand'] : 1,
+                'use_order_date' => (int)$row['use_order_date'] === 1,
+            ];
+        }
 
         // Headermap
         $map = [];
@@ -334,45 +361,24 @@ class ExcelImporter
             }
 
             // Rückstandsdaten berechnen
-            $rueck_ab_date = null;
             $rueckstand_relevant = 1;
             $rueck_rule_note = null;
+            $rueck_ab_date = $this->addDays(date('Y-m-d'), 1); // Default 1 Tag ab heute
 
-            if ($konz === 'HYUN') {
-                if ($bestellartInt === 1) {
-                    // 2 Werktage
-                    $rueck_ab_date = $this->addBusinessDays($bestelldatum, 2);
-                } elseif ($bestellartInt === 2) {
-                    // 2 Wochen (Kalendertage) – unverändert
-                    $rueck_ab_date = $this->addDays($bestelldatum, 14);
-                } elseif ($bestellartInt === 3) {
-                    // 1 Werktag
-                    $rueck_ab_date = $this->addBusinessDays($bestelldatum, 1);
-                }
-            }
-            elseif ($konz === 'GWM') {
-                if ($bestellartInt !== null && $bestellartInt >= 20 && $bestellartInt <= 23) {
-                    // 1 Werktag
-                    $rueck_ab_date = $this->addBusinessDays($bestelldatum, 1);
-                }
-            }
-            elseif ($konz === 'MAXU') {
-                if ($bestellartInt === 9) {
-                    // 1 Werktag
-                    $rueck_ab_date = $this->addBusinessDays($bestelldatum, 1);
-                }
-            }
-            elseif ($konz === 'SEAT') {
-                if ($bestellartInt !== null && $bestellartInt >= 11 && $bestellartInt <= 13) {
-                    // 1 Werktag
-                    $rueck_ab_date = $this->addBusinessDays($bestelldatum, 1);
-                }
-            }
-            elseif ($konz === 'VOLV' || $konz === 'POLE') {
-                if ($bestellartInt !== null && $bestellartInt >= 5 && $bestellartInt <= 8) {
-                    // wird später durch PG-Due-Date Sync gesetzt; Hinweis setzen
-                    $rueck_ab_date = null;
-                    $rueck_rule_note = 'VOLV/POLE (5-8): rueck_ab_date via PG orders.order_date';
+            if ($bestellartInt !== null && isset($this->deliveryTerms[$bestellartInt])) {
+                $term = $this->deliveryTerms[$bestellartInt];
+                $tage = $term['tage_bis_rueckstand'] ?? 1;
+
+                if ($term['use_order_date']) {
+                    $orderDate = $this->fetchOrderDateFromPG($bez_auftragsnr);
+                    if ($orderDate !== null) {
+                        $rueck_ab_date = $this->addDays($orderDate, $tage);
+                    } else {
+                        $rueck_ab_date = null;
+                        $rueck_rule_note = 'PG orders.number nicht gefunden';
+                    }
+                } else {
+                    $rueck_ab_date = $this->addDays(date('Y-m-d'), $tage);
                 }
             }
 
