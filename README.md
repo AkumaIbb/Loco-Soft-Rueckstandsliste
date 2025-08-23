@@ -155,7 +155,7 @@ Ich empfehle etwas wie "LIEFERANT Rückstandsliste datum.csv" mit dem entspreche
 Die Datei muss anschließend ins gleiche Verzeichnis gelegt werden wie die LocoBestellung.xlsx
 Die Datei wird halbstündlich eingelesen und anschließend gelöscht.
 
-	-
+---
 
 ## ToDo
 - E-Mail-Benachrichtigung bei Rückstand
