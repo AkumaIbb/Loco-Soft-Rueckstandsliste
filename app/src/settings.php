@@ -3,15 +3,24 @@ declare(strict_types=1);
 
 $PROJECT_ROOT = __DIR__;
 
-require_once $PROJECT_ROOT . '/vendor/autoload.php';
-require_once $PROJECT_ROOT . '/config/mysql_data.php'; // $db (PDODb)
-require_once $PROJECT_ROOT . '/src/Csrf.php';
+require_once $PROJECT_ROOT . '/../vendor/autoload.php';
+require_once $PROJECT_ROOT . '/../config/mysql_data.php'; // $db (PDODb)
+require_once $PROJECT_ROOT . '/../src/Csrf.php';
 
 csrf_token();
 
 function h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
 
 $flash = null;
+
+/**
+ * Erwartete (empfohlene) DB-Constraints:
+ * - delivery_terms: PRIMARY KEY(bestellart) oder UNIQUE(bestellart)
+ * - ignores: UNIQUE(name)
+ * - imports: UNIQUE(brand, filename)
+ *
+ * Damit funktionieren die Upserts korrekt.
+ */
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_validate($_POST['csrf'] ?? '')) {
@@ -20,85 +29,193 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $db->startTransaction();
 
-            // Lieferkonditionen
-            $db->rawQuery('TRUNCATE TABLE delivery_terms');
-            $nums = $_POST['term_number'] ?? [];
-            $delays = $_POST['term_delay'] ?? [];
-            $useOrders = $_POST['term_use_order'] ?? [];
-            foreach ($nums as $i => $num) {
-                $num = trim((string)$num);
-                if ($num === '') continue;
-                $db->insert('delivery_terms', [
-                    'bestellart' => (int)$num,
-                    'tage_bis_rueckstand' => ($delays[$i] !== '' ? (int)$delays[$i] : null),
-                    'use_order_date' => isset($useOrders[$i]) ? 1 : 0,
-                ]);
+            // --- Hilfsfunktion für IN-Listen ---
+            $makeIn = function(array $vals): array {
+                $vals = array_values($vals);
+                if (count($vals) === 0) {
+                    return ['', []]; // Aufrufer muss leeren Fall behandeln
+                }
+                $ph = implode(',', array_fill(0, count($vals), '?'));
+                return [$ph, $vals];
+            };
+
+            // ====== LIEFERKONDITIONEN ======
+            $nums      = $_POST['term_number'] ?? [];
+            $delays    = $_POST['term_delay'] ?? [];
+            $useOrders = $_POST['term_use_order'] ?? []; // kann [] oder ['<bestellart>' => 'on'] sein
+
+            // Gewünschter Zielzustand (key = bestellart)
+            $desiredTerms = [];
+            foreach ($nums as $i => $numRaw) {
+                $numStr = trim((string)$numRaw);
+                if ($numStr === '') { continue; }
+                $num = (int)$numStr;
+
+                $delayStr = trim((string)($delays[$i] ?? ''));
+                $delay = ($delayStr === '' ? null : (int)$delayStr);
+
+                // Checkbox ist entweder mit gleichem numerischen Index ODER mit bestellart als Key gesetzt
+                $checked = (isset($useOrders[$i]) || isset($useOrders[(string)$num])) ? 1 : 0;
+
+                $desiredTerms[$num] = [
+                    'bestellart' => $num,
+                    'tage'       => $delay,
+                    'use_order'  => $checked,
+                ];
             }
 
-            // Ignores
-            $db->rawQuery('TRUNCATE TABLE ignores');
+            // Entferne nur Einträge, die nicht mehr im Formular vorkommen
+            if (count($desiredTerms) > 0) {
+                [$ph, $vals] = $makeIn(array_keys($desiredTerms));
+                $db->rawQuery("DELETE FROM delivery_terms WHERE bestellart NOT IN ($ph)", $vals);
+            } else {
+                // Formular liefert gar keine Lieferkonditionen -> Tabelle leeren
+                $db->rawQuery("DELETE FROM delivery_terms");
+            }
+
+            // Upserts
+            foreach ($desiredTerms as $t) {
+                $db->rawQuery(
+                    "INSERT INTO delivery_terms (bestellart, tage_bis_rueckstand, use_order_date)
+                     VALUES (?, ?, ?)
+                     ON DUPLICATE KEY UPDATE
+                        tage_bis_rueckstand = VALUES(tage_bis_rueckstand),
+                        use_order_date      = VALUES(use_order_date)",
+                    [$t['bestellart'], $t['tage'], $t['use_order']]
+                );
+            }
+
+            // ====== IGNORES ======
+            $ignoreNames = [];
             foreach (($_POST['ignore_name'] ?? []) as $name) {
-                $name = trim((string)$name);
-                if ($name === '') continue;
-                $db->insert('ignores', ['name' => $name]);
+                $n = trim((string)$name);
+                if ($n !== '') { $ignoreNames[$n] = $n; }
             }
 
-            // Imports
-            $db->rawQuery('TRUNCATE TABLE imports');
+            if (count($ignoreNames) > 0) {
+                [$ph, $vals] = $makeIn($ignoreNames);
+                $db->rawQuery("DELETE FROM ignores WHERE name NOT IN ($ph)", $vals);
+            } else {
+                $db->rawQuery("DELETE FROM ignores");
+            }
+
+            foreach ($ignoreNames as $n) {
+                $db->rawQuery(
+                    "INSERT INTO ignores (name) VALUES (?)
+                     ON DUPLICATE KEY UPDATE name = VALUES(name)",
+                    [$n]
+                );
+            }
+
+            // ====== IMPORTS ======
             $brands = $_POST['import_brand'] ?? [];
             $files  = $_POST['import_filename'] ?? [];
             $types  = $_POST['import_type'] ?? [];
             $fields = $_POST['import_fields'] ?? [];
             $max = max(count($brands), count($files), count($types), count($fields));
+
+            $desiredImports = []; // key "brand||filename"
             for ($i = 0; $i < $max; $i++) {
-                $b = trim($brands[$i] ?? '');
-                $f = trim($files[$i] ?? '');
-                if ($b === '' && $f === '') continue;
-                $db->insert('imports', [
-                    'brand' => $b,
-                    'filename' => $f,
-                    'type' => trim($types[$i] ?? 'csv'),
-                    'fields' => trim($fields[$i] ?? ''),
-                ]);
+                $b = trim((string)($brands[$i] ?? ''));
+                $f = trim((string)($files[$i] ?? ''));
+                if ($b === '' && $f === '') { continue; }
+                $t = trim((string)($types[$i] ?? 'csv'));
+                $fld = trim((string)($fields[$i] ?? ''));
+
+                $key = $b . '||' . $f;
+                $desiredImports[$key] = ['brand' => $b, 'filename' => $f, 'type' => $t, 'fields' => $fld];
             }
 
-            // SMTP Server
-            $db->rawQuery('TRUNCATE TABLE smtp_servers');
+            if (count($desiredImports) > 0) {
+                // DELETE mit Tupel-NOT IN
+                $tuples = [];
+                $params = [];
+                foreach ($desiredImports as $it) {
+                    $tuples[] = "(?, ?)";
+                    $params[] = $it['brand'];
+                    $params[] = $it['filename'];
+                }
+                $tupleList = implode(',', $tuples);
+                $db->rawQuery("DELETE FROM imports WHERE (brand, filename) NOT IN ($tupleList)", $params);
+            } else {
+                $db->rawQuery("DELETE FROM imports");
+            }
+
+            foreach ($desiredImports as $it) {
+                $db->rawQuery(
+                    "INSERT INTO imports (brand, filename, type, fields)
+                     VALUES (?, ?, ?, ?)
+                     ON DUPLICATE KEY UPDATE
+                        type   = VALUES(type),
+                        fields = VALUES(fields)",
+                    [$it['brand'], $it['filename'], $it['type'], $it['fields']]
+                );
+            }
+
+            // ====== SMTP-SERVER (genau ein Datensatz) ======
             $host = trim((string)($_POST['smtp_host'] ?? ''));
             $port = (int)($_POST['smtp_port'] ?? 0);
+
             if ($host !== '' && $port > 0) {
-                $db->insert('smtp_servers', [
-                    'host' => $host,
-                    'port' => $port,
-                    'auth' => isset($_POST['smtp_auth']) ? 1 : 0,
-                    'username' => trim((string)($_POST['smtp_username'] ?? '')),
-                    'password' => trim((string)($_POST['smtp_password'] ?? '')),
-                    'from_address' => trim((string)($_POST['smtp_from_address'] ?? '')),
-                    'from_name' => trim((string)($_POST['smtp_from_name'] ?? '')),
-                    'reply_to' => trim((string)($_POST['smtp_reply_to'] ?? '')),
+                $data = [
+                    'host'          => $host,
+                    'port'          => $port,
+                    'auth'          => isset($_POST['smtp_auth']) ? 1 : 0,
+                    'username'      => trim((string)($_POST['smtp_username'] ?? '')),
+                    'password'      => trim((string)($_POST['smtp_password'] ?? '')),
+                    'from_address'  => trim((string)($_POST['smtp_from_address'] ?? '')),
+                    'from_name'     => trim((string)($_POST['smtp_from_name'] ?? '')),
+                    'reply_to'      => trim((string)($_POST['smtp_reply_to'] ?? '')),
                     'reply_to_name' => trim((string)($_POST['smtp_reply_to_name'] ?? '')),
-                    'verify_ssl' => isset($_POST['smtp_verify_ssl']) ? 1 : 0,
-                ]);
+                    'verify_ssl'    => isset($_POST['smtp_verify_ssl']) ? 1 : 0,
+                ];
+
+                // Gibt es schon einen?
+                $row = $db->rawQueryOne("SELECT id FROM smtp_servers LIMIT 1");
+                if ($row && isset($row['id'])) {
+                    $db->rawQuery(
+                        "UPDATE smtp_servers
+                         SET host=?, port=?, auth=?, username=?, password=?, from_address=?, from_name=?, reply_to=?, reply_to_name=?, verify_ssl=?
+                         WHERE id=?",
+                        [
+                            $data['host'], $data['port'], $data['auth'], $data['username'], $data['password'],
+                            $data['from_address'], $data['from_name'], $data['reply_to'], $data['reply_to_name'], $data['verify_ssl'],
+                            (int)$row['id']
+                        ]
+                    );
+                } else {
+                    $db->rawQuery(
+                        "INSERT INTO smtp_servers (host, port, auth, username, password, from_address, from_name, reply_to, reply_to_name, verify_ssl)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        [
+                            $data['host'], $data['port'], $data['auth'], $data['username'], $data['password'],
+                            $data['from_address'], $data['from_name'], $data['reply_to'], $data['reply_to_name'], $data['verify_ssl'],
+                        ]
+                    );
+                }
+            } else {
+                // Keine gültigen SMTP-Daten übermittelt -> nichts ändern (oder hier gezielt löschen, wenn gewünscht)
+                // $db->rawQuery("DELETE FROM smtp_servers");
             }
 
             $db->commit();
             $flash = ['type' => 'ok', 'msg' => 'Einstellungen gespeichert'];
-        } catch (Exception $e) {
-            $db->rollback();
+        } catch (Throwable $e) {
+            try { $db->rollback(); } catch (Throwable $ignore) {}
             $flash = ['type' => 'err', 'msg' => 'Fehler: ' . $e->getMessage()];
         }
     }
 }
 
+// Aktuelle Daten laden
 $deliveryTerms = $db->rawQuery('SELECT * FROM delivery_terms ORDER BY bestellart');
-$ignores = $db->rawQuery('SELECT * FROM ignores ORDER BY name');
-$imports = $db->rawQuery('SELECT * FROM imports ORDER BY brand, filename');
-$smtp = $db->rawQueryOne('SELECT * FROM smtp_servers LIMIT 1');
+$ignores       = $db->rawQuery('SELECT * FROM ignores ORDER BY name');
+$imports       = $db->rawQuery('SELECT * FROM imports ORDER BY brand, filename');
+$smtp          = $db->rawQueryOne('SELECT * FROM smtp_servers LIMIT 1');
 
 function csrf_field(): string {
     return '<input type="hidden" name="csrf" value="' . h(csrf_token()) . '">';
 }
-
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -136,14 +253,20 @@ th, td { border:1px solid #ddd; padding:6px 8px; vertical-align: top; }
   <tr>
     <td><input type="text" name="term_number[]" value="<?=h($t['bestellart'])?>"></td>
     <td><input type="text" name="term_delay[]" value="<?=h($t['tage_bis_rueckstand'])?>"></td>
-    <td style="text-align:center;"><input type="checkbox" name="term_use_order[<?=h($t['bestellart'])?>]" <?=($t['use_order_date'] ? 'checked' : '')?>></td>
+    <td style="text-align:center;">
+      <!-- Bestehende Einträge behalten das Mapping per bestellart -->
+      <input type="checkbox" name="term_use_order[<?=h($t['bestellart'])?>]" <?=(!empty($t['use_order_date']) ? 'checked' : '')?>>
+    </td>
     <td><a href="#" class="remove-row">−</a></td>
   </tr>
 <?php endforeach; ?>
   <tr class="template">
     <td><input type="text" name="term_number[]"></td>
     <td><input type="text" name="term_delay[]"></td>
-    <td style="text-align:center;"><input type="checkbox" name="term_use_order[]"></td>
+    <td style="text-align:center;">
+      <!-- Neue Zeilen nutzen den numerischen Index -->
+      <input type="checkbox" name="term_use_order[]">
+    </td>
     <td><a href="#" class="remove-row">−</a></td>
   </tr>
 </tbody>
@@ -235,8 +358,14 @@ document.querySelectorAll('table').forEach(function(tbl){
       const template = tbody.querySelector('tr.template');
       const clone = template.cloneNode(true);
       clone.classList.remove('template');
-      clone.querySelectorAll('input').forEach(function(inp){
-        if (inp.type === 'checkbox') { inp.checked = false; } else { inp.value = ''; }
+      clone.querySelectorAll('input, select').forEach(function(inp){
+        if (inp.tagName === 'SELECT') {
+          inp.selectedIndex = 0;
+        } else if (inp.type === 'checkbox') {
+          inp.checked = false;
+        } else {
+          inp.value = '';
+        }
       });
       tbody.insertBefore(clone, template);
     }
