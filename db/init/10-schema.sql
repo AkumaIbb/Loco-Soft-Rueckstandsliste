@@ -212,6 +212,34 @@ CREATE TABLE `ignores` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `import_mapping`
+--
+
+DROP TABLE IF EXISTS `import_mapping`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `import_mapping` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `brand` varchar(100) DEFAULT NULL,
+  `partnernummer` varchar(100) DEFAULT NULL,
+  `auftragsnummer` varchar(100) DEFAULT NULL,
+  `teilenummer` varchar(120) DEFAULT NULL,
+  `kundenreferenz` varchar(100) DEFAULT NULL,
+  `anlagedatum` varchar(100) DEFAULT NULL,
+  `auftragsart` varchar(100) DEFAULT NULL,
+  `bestellte_menge` varchar(100) DEFAULT NULL,
+  `bestaetigte_menge` varchar(100) DEFAULT NULL,
+  `offene_menge` varchar(100) DEFAULT NULL,
+  `vsl_lt_sap` varchar(100) DEFAULT NULL,
+  `vsl_lt_vz` varchar(100) DEFAULT NULL,
+  `info_vz` varchar(100) DEFAULT NULL,
+  `aenderungsdatum` varchar(100) DEFAULT NULL,
+  `teilelocator` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `imports`
 --
 
@@ -222,9 +250,11 @@ CREATE TABLE `imports` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `brand` varchar(100) NOT NULL,
   `filename` varchar(255) NOT NULL,
-  `type` varchar(10) NOT NULL DEFAULT 'csv',
+  `map_id` bigint(20) unsigned NOT NULL,
   `fields` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `fk_imports_mapping` (`map_id`),
+  CONSTRAINT `fk_imports_mapping` FOREIGN KEY (`map_id`) REFERENCES `import_mapping` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
