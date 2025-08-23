@@ -17,7 +17,6 @@ $flash = null;
  * Erwartete (empfohlene) DB-Constraints:
  * - delivery_terms: PRIMARY KEY(bestellart) oder UNIQUE(bestellart)
  * - ignores: UNIQUE(name)
- * - imports: UNIQUE(brand, filename)
  *
  * Damit funktionieren die Upserts korrekt.
  */
@@ -107,51 +106,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
             }
 
-            // ====== IMPORTS ======
-            $brands = $_POST['import_brand'] ?? [];
-            $files  = $_POST['import_filename'] ?? [];
-            $types  = $_POST['import_type'] ?? [];
-            $fields = $_POST['import_fields'] ?? [];
-            $max = max(count($brands), count($files), count($types), count($fields));
-
-            $desiredImports = []; // key "brand||filename"
-            for ($i = 0; $i < $max; $i++) {
-                $b = trim((string)($brands[$i] ?? ''));
-                $f = trim((string)($files[$i] ?? ''));
-                if ($b === '' && $f === '') { continue; }
-                $t = trim((string)($types[$i] ?? 'csv'));
-                $fld = trim((string)($fields[$i] ?? ''));
-
-                $key = $b . '||' . $f;
-                $desiredImports[$key] = ['brand' => $b, 'filename' => $f, 'type' => $t, 'fields' => $fld];
-            }
-
-            if (count($desiredImports) > 0) {
-                // DELETE mit Tupel-NOT IN
-                $tuples = [];
-                $params = [];
-                foreach ($desiredImports as $it) {
-                    $tuples[] = "(?, ?)";
-                    $params[] = $it['brand'];
-                    $params[] = $it['filename'];
-                }
-                $tupleList = implode(',', $tuples);
-                $db->rawQuery("DELETE FROM imports WHERE (brand, filename) NOT IN ($tupleList)", $params);
-            } else {
-                $db->rawQuery("DELETE FROM imports");
-            }
-
-            foreach ($desiredImports as $it) {
-                $db->rawQuery(
-                    "INSERT INTO imports (brand, filename, type, fields)
-                     VALUES (?, ?, ?, ?)
-                     ON DUPLICATE KEY UPDATE
-                        type   = VALUES(type),
-                        fields = VALUES(fields)",
-                    [$it['brand'], $it['filename'], $it['type'], $it['fields']]
-                );
-            }
-
             // ====== SMTP-SERVER (genau ein Datensatz) ======
             $host = trim((string)($_POST['smtp_host'] ?? ''));
             $port = (int)($_POST['smtp_port'] ?? 0);
@@ -210,7 +164,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Aktuelle Daten laden
 $deliveryTerms = $db->rawQuery('SELECT * FROM delivery_terms ORDER BY bestellart');
 $ignores       = $db->rawQuery('SELECT * FROM ignores ORDER BY name');
-$imports       = $db->rawQuery('SELECT * FROM imports ORDER BY brand, filename');
 $smtp          = $db->rawQueryOne('SELECT * FROM smtp_servers LIMIT 1');
 
 function csrf_field(): string {
@@ -223,6 +176,9 @@ function csrf_field(): string {
 <meta charset="utf-8">
 <title>Einstellungen</title>
 <style>
+:root {
+--muted: #9ca3af;
+}
 body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:16px; }
 table { width:100%; border-collapse: collapse; margin-bottom:20px; }
 th, td { border:1px solid #ddd; padding:6px 8px; vertical-align: top; }
@@ -232,6 +188,7 @@ th, td { border:1px solid #ddd; padding:6px 8px; vertical-align: top; }
 .controls { display:flex; gap:8px; margin-top:12px; }
 .btn { padding:8px 12px; border:1px solid #999; border-radius:6px; background:#fff; cursor:pointer; }
 .btn.primary { background:#0b5; color:#fff; border-color:#0a4; }
+.muted { color: var(--muted); }
 .add-row, .remove-row { text-decoration:none; font-weight:bold; padding:0 6px; }
 .hint { color:#666; font-size:12px; margin:4px 0; }
 </style>
@@ -246,6 +203,17 @@ th, td { border:1px solid #ddd; padding:6px 8px; vertical-align: top; }
 <?=csrf_field() ?>
 
 <h2>Lieferkonditionen</h2>
+<details><summary><strong>Lieferart mit -dauer verknüpfen</strong></summary>
+        <pre class="muted" style="white-space:pre-wrap">
+Hier wird festgelegt, ab wann eine Bestellung als Rückständig gilt.<br>
+	Standardregel = 1 Tag nach Bestellung
+	Anhand der Lieferkondition im Loco-Soft (572 => Nr. der Lieferkondition) kann hier ein verändertes Offset festgelegt werden.<br>
+	Möglichkeit 1: Offset in Werktagen
+		Typisch z.B. Eilorder - 1 Tag, Normalorder - 2 Werktage, Vorratsorder - 10 Tage
+	Möglichkeit 2: Auftragsdatum
+		Typisch z.B. bei Pre-Plan-Order, wenn Ware am Auftragstag geliefert wird.
+        </pre>
+      </details>
 <table id="tblTerms">
 <thead><tr><th>Nummer</th><th>Verzögerung</th><th>Auftragsdatum</th><th></th></tr></thead>
 <tbody>
@@ -274,6 +242,12 @@ th, td { border:1px solid #ddd; padding:6px 8px; vertical-align: top; }
 </table>
 
 <h2>Ignores</h2>
+<details><summary><strong>Ignorierte Lieferanten</strong></summary>
+        <pre class="muted" style="white-space:pre-wrap">
+Wenn Lieferanten nicht in der Rückstandsliste berücksichtig werden sollen können hier die Kürzel eingetragen werden.
+Es ist der 4-Stellige Name aus der 572 einzutragen, z.B. HYUN..
+        </pre>
+      </details>
 <table id="tblIgnores">
 <thead><tr><th>Hersteller</th><th></th></tr></thead>
 <tbody>
@@ -291,42 +265,12 @@ th, td { border:1px solid #ddd; padding:6px 8px; vertical-align: top; }
 <tfoot><tr><td colspan="2"><a href="#" class="add-row">+</a></td></tr></tfoot>
 </table>
 
-<h2>Imports</h2>
-<p class="hint">Platzhalter z.B. DD.MM.YYYY und * für beliebige Zeichen im Dateinamen verwenden.</p>
-<table id="tblImports">
-<thead><tr><th>Hersteller</th><th>Dateiname</th><th>Typ</th><th>Felder</th><th></th></tr></thead>
-<tbody>
-<?php foreach ($imports as $imp): ?>
-  <tr>
-    <td><input type="text" name="import_brand[]" value="<?=h($imp['brand'])?>"></td>
-    <td><input type="text" name="import_filename[]" value="<?=h($imp['filename'])?>"></td>
-    <td>
-      <select name="import_type[]">
-        <option value="csv" <?=($imp['type'] === 'csv' ? 'selected' : '')?>>CSV</option>
-        <option value="excel" <?=($imp['type'] === 'excel' ? 'selected' : '')?>>Excel</option>
-      </select>
-    </td>
-    <td><input type="text" name="import_fields[]" value="<?=h($imp['fields'])?>"></td>
-    <td><a href="#" class="remove-row">−</a></td>
-  </tr>
-<?php endforeach; ?>
-  <tr class="template">
-    <td><input type="text" name="import_brand[]"></td>
-    <td><input type="text" name="import_filename[]"></td>
-    <td>
-      <select name="import_type[]">
-        <option value="csv">CSV</option>
-        <option value="excel">Excel</option>
-      </select>
-    </td>
-    <td><input type="text" name="import_fields[]"></td>
-    <td><a href="#" class="remove-row">−</a></td>
-  </tr>
-</tbody>
-<tfoot><tr><td colspan="5"><a href="#" class="add-row">+</a></td></tr></tfoot>
-</table>
-
 <h2>SMTP-Server</h2>
+<details><summary><strong>ToDo: E-Mail Versand</strong></summary>
+        <pre class="muted" style="white-space:pre-wrap">
+Aktuell noch implementiert. Vorbereitung für einen automatischen Mailversand.
+        </pre>
+      </details>
 <table>
 <tbody>
   <tr><th>Host</th><td><input type="text" name="smtp_host" value="<?=h($smtp['host'] ?? '')?>"></td></tr>
