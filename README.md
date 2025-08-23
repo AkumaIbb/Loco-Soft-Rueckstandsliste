@@ -164,5 +164,6 @@ Die Datei wird halbstündlich eingelesen und anschließend gelöscht.
 
 ---
 Dieses Projekt steht unter der Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).
+
 Es ist ein frei entwickeltes Hobbyprojekt und der Entwickler hat keinerlei geschäftliche Beziehungen zur Loco-Soft Vertriebs GmbH.
 Es handelt sich also nicht um ein offizielles Release des Herstellers.
