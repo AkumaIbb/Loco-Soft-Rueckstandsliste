@@ -1,33 +1,41 @@
 services:
   web:
     build: .
-    container_name: app-web
+    container_name: rueckstand-web
     ports:
       - "8080:80"
     env_file:
       - .env
     volumes:
-      - ./app:/var/www/html
-      - /mnt/Import-Folder:/mnt/Import-Folder
+      - ./app:/var/www/html:rw
+      - /mnt/Import-Folder:/mnt/Import-Folder:rw
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
+    networks: [app1-net]
     restart: unless-stopped
-    # Composer beim Start ausführen (installiert Vendor beim ersten Run)
     command: >
       bash -lc "composer install --no-interaction --prefer-dist &&
                 apache2-foreground"
 
   mysql:
     image: mysql:8.0
-    container_name: app-mysql
-    restart: unless-stopped
+    container_name: rueckstand-mysql
     env_file:
       - .env
-    ports:
-      - "3306:3306"
     volumes:
-      - db_data:/var/lib/mysql
+      - app1-dbdata:/var/lib/mysql
       - ./db/init:/docker-entrypoint-initdb.d:ro
+    networks: [app1-net]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
 volumes:
-  db_data:
+  app1-dbdata:
+
+networks:
+  app1-net:
