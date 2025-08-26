@@ -8,7 +8,7 @@ Ziel ist es, einen schnellen Überblick für Serviceberater:innen und Teilediens
 Es wird benötigt: 
 - Eine Virtuelle Maschine (Linux, ich empfehle Ubuntu) oder ein vergleichbares Gerät (z.B. Raspberry Pi)
 - Ein Netzwerkshare (Also eine Netzwerkfreigabe), auf dem die Bestelldatei abgelegt wird.
-	Ich verwende hier das Beispiel: **\\loco.autohaus.local\Abteilungsordner\Ersatzteillager\Bestellungen**  als Beispiel für den Netzwerk-Share.
+	Ich verwende hier das Beispiel: **\\\loco.autohaus.local\Abteilungsordner\Ersatzteillager\Bestellungen**  als Beispiel für den Netzwerk-Share.
 - Ein wenig Linux-Affinität.
 
 ## Installation und Einrichtung von Docker
